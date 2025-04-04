@@ -13,5 +13,5 @@ elif [[ serve == $COMMAND ]]; then
 elif [[ pytest == $COMMAND ]]; then
     docker run -v usf-model-api-root:/package usf-model-api:latest pipenv run pytest ./tests ./service/routers/sales_forecasting/test_router.py
 else
-    echo "No command provided. Available commands: train, serve"
+    echo "No command provided. Available commands: train, serve, and pytest"
 fi
