@@ -1,36 +1,38 @@
-from logging import getLogger
+import argparse
+import logging
+from typing import Any
+
 import pandas as pd
+import numpy as np
 
-from models.sales_forecasting.data import SalesDataset
-from models.sales_forecasting.model import SalesForecastingModel
+from sklearn import set_config
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.model_selection import train_test_split
+from sklearn.utils.validation import check_is_fitted
+from sklearn.metrics import mean_absolute_percentage_error
+
+from catboost import CatBoostRegressor
+
+from usf_model_api.models.base import PredictionModel, ModelDataset
 
 
-LOG = getLogger(__name__)
+set_config(transform_output="pandas")
+logging.basicConfig()
 
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.INFO)
 
 MODEL_PARAMS = {
-    "nthread": -1, #10,
-     "max_depth": 5,
-    #         "max_depth": 9,
-    "task": "train",
-    "boosting_type": "gbdt",
-    "objective": "regression_l1",
-    "metric": "mape", # this is abs(a-e)/max(1,a)
-    #         "num_leaves": 39,
-    "num_leaves": 64,
-    "learning_rate": 0.2,
-    "feature_fraction": 0.9,
-    #         "feature_fraction": 0.8108472661400657,
-    #         "bagging_fraction": 0.9837558288375402,
-    "bagging_fraction": 0.8,
-    "bagging_freq": 5,
-    "lambda_l1": 3.097758978478437,
-    "lambda_l2": 2.9482537987198496,
-    #       "lambda_l1": 0.06,
-    #       "lambda_l2": 0.1,
-    "verbose": 1,
-    "min_child_weight": 6.996211413900573,
-    "min_split_gain": 0.037310344962162616,
+    "verbose": 100,
+    "loss_function": "RMSE",
+    "learning_rate": 0.4, #0.3,
+    "depth": 5,
+    # "l2_leaf_reg": 30, #2, #5, #3, #5, #2.5, #5, #10, #0.1,
+    "n_estimators": 3_000,
+    "boost_from_average": True,
+    "bootstrap_type": "MVS", #"No",
+    "subsample": 0.8,
+    "eval_metric": "MAPE",
 }
 
 TRAIN_DATA_LOC = "../../downloads/train.csv"
@@ -39,23 +41,99 @@ TRAIN_PCT = 0.8
 TARGET = "sales"
 
 
-if __name__ is "__main__":
-    LOG.info("Loading training data from %s", TRAIN_DATA_LOC)
-    data = pd.read_csv(TRAIN_DATA_LOC)
+class DateFeatureExtractor(BaseEstimator, TransformerMixin):
+    def fit(self, X: pd.DataFrame, y=None) -> "DateFeatureExtractor":
+        return self
 
-    # Create splits
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = X.copy()
+        X['day'] = pd.to_datetime(X['date']).dt.day
+        X['month'] = pd.to_datetime(X['date']).dt.month
+        X['year'] = pd.to_datetime(X['date']).dt.year
+        X['day_of_week'] = pd.to_datetime(X['date']).dt.dayofweek
+        return X.drop(columns=['date'])
+
+
+class SalesDataset(ModelDataset):
+    def __init__(self, data: pd.DataFrame, train_pct: float = 0.8, random_seed: int = 42):
+        self.data = data
+        self.train_pct = train_pct
+        self.random_seed = random_seed
+        self.splits = self._get_splits(data)
+
+    def _get_splits(self, data: pd.DataFrame):
+        train_df, test_df = train_test_split(
+            data,
+            train_size=self.train_pct,
+            shuffle=True,
+            random_state=self.random_seed
+        )
+        return {
+            "train": train_df,
+            "test": test_df,
+        }
+
+    def get_training_split(self):
+        return self.splits["train"]
+
+    def get_test_split(self):
+        return self.splits["test"]
+
+
+class SalesForecastingModel(PredictionModel):
+    def __init__(self, preprocessor: Any, predictor: CatBoostRegressor):
+        super().__init__(preprocessor=preprocessor, predictor=predictor)
+
+    def evaluate(self, X: pd.DataFrame, y: np.ndarray) -> float:
+        check_is_fitted(self.model)
+
+        predictions = self.model.predict(X)
+        mae = mean_absolute_percentage_error(y_true=y, y_pred=predictions)
+
+        return mae
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Train a sales forecasting model.")
+    parser.add_argument(
+        "--data-loc",
+        type=str,
+        default=TRAIN_DATA_LOC,
+        help="Location of the training data CSV file.",
+    )
+    parser.add_argument(
+        "--save-loc",
+        type=str,
+        default=SAVE_MODEL_LOC,
+        help="Location to save the trained model.",
+    )
+    parser.add_argument(
+        "--train-pct",
+        type=float,
+        default=TRAIN_PCT,
+        help="Percentage of data to use for training.",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    LOG.info("Loading training data from %s", args.data_loc)
+    data = pd.read_csv(args.data_loc)
+
     LOG.info("Creating training and test splits")
-    model_dataset = SalesDataset(data, train_pct=TRAIN_PCT)
+    model_dataset = SalesDataset(data, train_pct=args.train_pct)
     train_df = model_dataset.get_training_split()
     X_train = train_df.drop(columns=[TARGET])
     y_train = train_df[TARGET].to_numpy()
 
-    # Train model
     LOG.info("Training model ...")
-    model = SalesForecastingModel(MODEL_PARAMS)
+    model = SalesForecastingModel(
+        preprocessor=DateFeatureExtractor(), predictor=CatBoostRegressor(**MODEL_PARAMS)
+    )
     model.fit(X_train, y_train)
 
-    # Evaluate model
     LOG.info("Evaluating model ...")
     test_df = model_dataset.get_test_split()
     X_test = test_df.drop(columns=[TARGET])
@@ -63,5 +141,5 @@ if __name__ is "__main__":
     score = model.evaluate(X_test, y_test)
     LOG.info("Model evaluation score: %s", score)
 
-    LOG.info("Saving model to %s", SAVE_MODEL_LOC)
-    model.serialize(SAVE_MODEL_LOC)
+    LOG.info("Saving model to %s", args.save_loc)
+    model.serialize(args.save_loc)

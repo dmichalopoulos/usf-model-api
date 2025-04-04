@@ -9,3 +9,4 @@ Dockerfile
 .eslintrc
 .editorconfig
 /downloads
+**/catboost_info/
