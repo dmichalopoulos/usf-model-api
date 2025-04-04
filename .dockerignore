@@ -11,3 +11,4 @@ coverage/
 **/catboost_info/
 **/.eggs
 **/.egg-info
+.pylintrc

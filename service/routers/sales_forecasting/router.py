@@ -25,17 +25,46 @@ router = APIRouter(
     prefix="/sales-forecasting",
     tags=["ai_model"],
     dependencies=None,
-    # responses={404: {"description": "Not found"}},
 )
 
 
 class SalesForecastRequest(PredictionRequest):
+    """
+    A subclass of ``PredictionRequest`` used to represent a sales forecast request.
+
+    Attributes
+    ----------
+    date : str
+        The date for which the forecast is requested.
+    store : int
+        The store identifier.
+    item : int
+        The item identifier.
+    """
     date: str
     store: int
     item: int
 
     @field_validator("date")
     def check_date(cls, date: str):
+        """
+        Checks that the ``date`` field is valid and correctly formatted.
+
+        Parameters
+        ----------
+        date : str
+            The date string to validate.
+
+        Returns
+        -------
+        str
+            The validated date string.
+
+        Raises
+        ------
+        ValueError
+            If the date string is not in a valid format.
+        """
         try:
             parse(date)
         except ValueError:
@@ -51,7 +80,12 @@ class SalesForecastRequest(PredictionRequest):
 @router.get("/")
 def read_root():
     """
-    Application root
+    Application root endpoint.
+
+    Returns
+    -------
+    JSONResponse
+        A JSON response with a welcome message.
     """
     return JSONResponse(
         status_code=HTTPStatus.OK,
@@ -64,6 +98,11 @@ def get_app_status() -> JSONResponse:
     """
     This endpoint returns the status of the application.
     It can be used to check if the application is up and running.
+
+    Returns
+    -------
+    JSONResponse
+        A JSON response with the application status.
     """
     return JSONResponse(
         status_code=HTTPStatus.OK,
@@ -73,9 +112,19 @@ def get_app_status() -> JSONResponse:
 
 def _predict(prediction_request: SalesForecastRequest | List[SalesForecastRequest]) -> List[Dict[str, Any]]:
     """
-    Generates and stores (atomicly; either all are successful or nothing is written) predictions
+    Generates and stores (atomically; either all are successful or nothing is written) predictions
     for one or more sales forecast requests. Each request is allowed to request a specific model deployment
     based on its ``model_id`` field.
+
+    Parameters
+    ----------
+    prediction_request : SalesForecastRequest | List[SalesForecastRequest]
+        A single sales forecast request or a list of sales forecast requests.
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        A list of dictionaries containing the predictions.
     """
     # Create and prepare dataframe for scoring
     to_score = prediction_request if isinstance(prediction_request, list) else [prediction_request]
@@ -116,8 +165,18 @@ def _predict(prediction_request: SalesForecastRequest | List[SalesForecastReques
 @router.post("/predict")
 def predict(prediction_request: SalesForecastRequest | List[SalesForecastRequest]) -> JSONResponse:
     """
-    This endpoint is used to make predictions using the model. The model(s) used to generate predictions
+    This endpoint is used to get model predictions. The model(s) used to generate predictions
     is determined by the ``model_id`` field value in each ``SalesForecastRequest`` object.
+
+    Parameters
+    ----------
+    prediction_request : SalesForecastRequest | List[SalesForecastRequest]
+        A single sales forecast request or a list of sales forecast requests.
+
+    Returns
+    -------
+    JSONResponse
+        A JSON response containing the predictions.
     """
     predictions = _predict(prediction_request)
 

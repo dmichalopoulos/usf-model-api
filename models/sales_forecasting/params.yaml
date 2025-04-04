@@ -1,0 +1,28 @@
+catboost:
+  verbose: 100
+  loss_function: "RMSE"
+  learning_rate: 0.4
+  depth: 5
+  n_estimators: 500
+  boost_from_average: true
+  bootstrap_type: MVS
+  subsample: 0.8
+  eval_metric: "MAPE"
+
+lgbm:
+  nthread: -1
+  max_depth: 5
+  task: "train"
+  boosting_type: "gbdt"
+  objective: "regression_l1"
+  metric: "mape"
+  num_leaves: 64
+  learning_rate: 0.2
+  feature_fraction: 0.9
+  bagging_fraction: 0.8
+  bagging_freq: 5
+  lambda_l1: 3.097758978478437
+  lambda_l2: 2.9482537987198496
+  verbose: 100
+  min_child_weight: 6.996211413900573
+  min_split_gain: 0.037310344962162616

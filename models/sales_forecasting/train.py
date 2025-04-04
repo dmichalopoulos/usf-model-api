@@ -1,6 +1,5 @@
 import argparse
 from pathlib import Path
-import logging
 from typing import Dict, Any
 
 import pandas as pd
@@ -13,21 +12,23 @@ from sklearn.utils.validation import check_is_fitted
 from sklearn.metrics import mean_absolute_percentage_error
 
 from catboost import CatBoostRegressor
+from lightgbm import LGBMRegressor
 
 from usf_model_api.models.base import PredictionModel, ModelDataset
+from usf_model_api.utils import get_logger, load_yaml
 
 
 set_config(transform_output="pandas")
-logging.basicConfig()
+LOG = get_logger(__name__)
 
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.INFO)
+
+# Model types
+VALID_MODEL_TYPES = {"catboost", "lgbm"}
 
 
 # Defaults (can be overridden by command line args)
 DEFAULT_SCRIPT_PATH = Path(__file__).resolve().parent
 DEFAULT_TRAIN_DATA_LOC = DEFAULT_SCRIPT_PATH.joinpath("../..", "downloads", "train.csv")
-# DEFAULT_SAVE_MODEL_LOC = DEFAULT_SCRIPT_PATH.joinpath("../..", "service", "assets")
 DEFAULT_SAVE_MODEL_LOC = DEFAULT_SCRIPT_PATH.joinpath(
     "../..",
     "service",
@@ -40,18 +41,8 @@ DEFAULT_RANDOM_SEED = 42
 
 # Model parameters
 TARGET = "sales"
-MODEL_PARAMS = {
-    "verbose": 100,
-    "loss_function": "RMSE",
-    "learning_rate": 0.4, #0.3,
-    "depth": 5,
-    # "l2_leaf_reg": 30, #2, #5, #3, #5, #2.5, #5, #10, #0.1,
-    "n_estimators": 500, #3_000,
-    "boost_from_average": True,
-    "bootstrap_type": "MVS", #"No",
-    "subsample": 0.8,
-    "eval_metric": "MAPE",
-}
+# MODEL_PARAMS = load_yaml("./params.yaml")
+MODEL_PARAMS = load_yaml(DEFAULT_SCRIPT_PATH / "params.yaml")
 
 
 class DateFeatureExtractor(BaseEstimator, TransformerMixin):
@@ -108,11 +99,18 @@ class SalesForecastingModel(PredictionModel):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a sales forecasting model.")
+    # parser.add_argument(
+    #     "--model-name",
+    #     type=str,
+    #     required=True,
+    #     help="Location of the training data CSV file.",
+    # )
     parser.add_argument(
         "--model-name",
+        action="append",
+        help=f"Models to train. One of {VALID_MODEL_TYPES}.",
         type=str,
-        required=True,
-        help="Location of the training data CSV file.",
+        default=[],
     )
     parser.add_argument(
         "--data-loc",
@@ -142,8 +140,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-if __name__ == "__main__":
-    args = parse_args()
+def train_models(args: argparse.Namespace):
+    # If an unspecified model name is provided, raise an error
+    if set(args.model_name) - VALID_MODEL_TYPES:
+        raise ValueError(
+            "Expected elements of 'model_name' to be one of %s, but found '%s'.",
+            VALID_MODEL_TYPES,
+            args.model_name
+        )
 
     LOG.info("Loading training data from %s", args.data_loc)
     data = pd.read_csv(args.data_loc)
@@ -154,22 +158,29 @@ if __name__ == "__main__":
     X_train = train_df.drop(columns=[TARGET])
     y_train = train_df[TARGET].to_numpy()
 
-    LOG.info("Training model ...")
-    model = SalesForecastingModel(
-        model_id=args.model_name,
-        preprocessor=DateFeatureExtractor(),
-        predictor=CatBoostRegressor(**MODEL_PARAMS)
-    )
-    model.fit(X_train, y_train)
+    for name in args.model_name:
+        LOG.info("Training %s model ...", name)
+        params = MODEL_PARAMS[name]
+        model = SalesForecastingModel(
+            model_id=name,
+            preprocessor=DateFeatureExtractor(),
+            predictor=(CatBoostRegressor if name == "catboost" else LGBMRegressor)(**params)
+        )
+        model.fit(X_train, y_train)
 
-    LOG.info("Evaluating model ...")
-    test_df = model_dataset.get_test_split()
-    X_test = test_df.drop(columns=[TARGET])
-    y_test = test_df[TARGET].to_numpy()
-    score = model.evaluate(X_test, y_test)
-    LOG.info("Model evaluation score: %s", score)
+        LOG.info("Evaluating model ...")
+        test_df = model_dataset.get_test_split()
+        X_test = test_df.drop(columns=[TARGET])
+        y_test = test_df[TARGET].to_numpy()
+        score = model.evaluate(X_test, y_test)
+        LOG.info("Model evaluation score: %s", score)
 
-    # LOG.info("Saving model to %s", os.path.join(args.save_loc, args.model_name))
-    save_path = Path(args.save_loc).joinpath(f"{model.model_id}.pkl")
-    LOG.info("Saving model to '%s'", save_path)
-    model.serialize(save_path)
+        save_path = Path(args.save_loc).joinpath(f"{model.model_id}.pkl")
+        LOG.info("Saving model to '%s'", save_path)
+        model.serialize(save_path)
+
+
+if __name__ == "__main__":
+    parsed_args = parse_args()
+    train_models(parsed_args)
+
