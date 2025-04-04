@@ -10,6 +10,8 @@ if [[ train == $COMMAND ]]; then
       --model-name "lgbm"
 elif [[ serve == $COMMAND ]]; then
     docker run -v usf-model-api-root:/package -p 80:80 usf-model-api:latest pipenv run fastapi run ./service/app.py --port 80
+elif [[ pytest == $COMMAND ]]; then
+    docker run -v usf-model-api-root:/package usf-model-api:latest pipenv run pytest ./tests ./service/routers/sales_forecasting/test_router.py
 else
     echo "No command provided. Available commands: train, serve"
 fi

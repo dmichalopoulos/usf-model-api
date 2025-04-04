@@ -12,3 +12,4 @@ coverage/
 **/.eggs
 **/.egg-info
 .pylintrc
+./run.sh
