@@ -1,55 +1,47 @@
 from logging import getLogger
-from typing import Any, Dict, Union, Optional, Type
+from typing import Any, Dict, Type, Optional
 
 import cloudpickle
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils.validation import check_is_fitted
+from sklearn.pipeline import Pipeline
 
 
 LOG = getLogger()
 
 
-# NOTE: Per the sklearn docs, always make sure that all Mixin classes come before BaseEstimator in
-# the inheritance order.
-class USFModel(TransformerMixin, BaseEstimator):
-    """
-    A subclass of :py:class:`sklearn.base.BaseEstimator` and :py:class:`sklearn.base.TransformerMixin`,
-    which serves as a base class for deployed models. It allows for lots of customization, including
-    how a model instance is serialized/deserialized.
-    """
-
-    def __init__(self, *model_args, model_cls: Type = None, model_id: str = None, **model_kwargs):
+class ModelDataset:
+    def get_training_split(self):
         """
-        Initializer.
-
-        Notes
-        -----
-         * ``model_cls`` should be a class that adheres to ``sklearn`` standards for estimators. In particular,
-           a ``model_cls`` instance should have an ``estimator_type`` tag value that will allow model scoring
-           functions to correctly infer whether it's a classifier, regressor, or something else. See
-           `here <https://scikit-learn.org/stable/modules/generated/sklearn.utils.Tags.html>`_ for more details.
-
-        Parameters
-        ----------
-        model_args : Arguments required by the wrapped model
-        model_cls : The class of the wrapped model
-        model_id: The model id that identifies the model in the AI Factory registry
-        model_kwargs: Keyword arguments accepted by the wrapped model
+        Returns the training split of the dataset
         """
-        self._model_id = None
+        raise NotImplementedError("get_training_split() is not implemented.")
 
-        if model_id is None:
-            # generate model_id, could be from kfp
-            pass
-        else:
-            self._model_id = model_id
+    def get_validation_split(self):
+        """
+        Returns the validation split of the dataset
+        """
+        raise NotImplementedError("get_validation_split() is not implemented.")
 
-        self._model = None
-        self.model_cls = model_cls
-        self.model_args = model_args
-        self.model_kwargs = model_kwargs
-        super().__init__()
+    def get_test_split(self):
+        """
+        Returns the test split of the dataset
+        """
+        raise NotImplementedError("get_test_split() is not implemented.")
+
+
+class PredictionModel(TransformerMixin, BaseEstimator):
+    def __init__(self, preprocessor: Optional[Any], predictor: BaseEstimator):
+        self._preprocessor = preprocessor
+        self._predictor = predictor
+        self._model = Pipeline(
+            [
+                ('preprocessor', self.preprocessor),
+                ('model', self.predictor)
+            ]
+        )
 
     def __sklearn_tags__(self):
         if self.model and hasattr(self.model, "__sklearn_tags__"):
@@ -58,172 +50,46 @@ class USFModel(TransformerMixin, BaseEstimator):
         return super().__sklearn_tags__()
 
     @property
-    def model_id(self):
+    def preprocessor(self) -> Any:
         """
-        Returns the id currently associated with the model.
-
-        Notes
-        -----
-        Because the model id can be provided arbitrarily to the constructor, it should not be assumed that
-        the id returned by this method is a valid AI Factory model id.
+        Returns the preprocessor
         """
-        return self._model_id
+        return self._preprocessor
 
     @property
-    def model(self):
+    def predictor(self) -> BaseEstimator:
         """
-        Returns the wrapped model
+        Returns the predictor
+        """
+        return self._predictor
+
+    @property
+    def model(self) -> Pipeline:
+        """
+        Returns the model
         """
         return self._model
 
-    def fit(
-        self,
-        X: Union[pd.DataFrame, np.ndarray],
-        y: Optional[Union[pd.Series, np.ndarray]] = None,
-        **fit_params,
-    ) -> "USFModel":
-        """
-        Invokes the fit method of the wrapped model
-
-        Parameters
-        ----------
-        X : Training data features, each row is a data point and each column a feature
-        y : Labels for each data point for supervised training
-        fit_params: Fitting parameters required by the wrapped model
-        """
-        self._model = self.model_cls(*self.model_args, **self.model_kwargs)
-
+    def fit(self, X: pd.DataFrame, y: np.ndarray, **fit_params) -> "PredictionModel":
         try:
-            self._model.fit(X, y=y, **fit_params)
+            self.model.fit(X, y=y, **fit_params)
+            self.is_fitted_ = True
         except AttributeError as e:
             raise NotImplementedError("Method fit(..) is not implemented.") from e
-        return self
-
-    def partial_fit(
-        self,
-        X: Union[pd.DataFrame, np.ndarray],
-        y: Optional[Union[pd.Series, np.ndarray]] = None,
-        **fit_params,
-    ) -> "USFModel":
-        """
-        Invokes the partial_fit method of the wrapped model
-
-        Parameters
-        ----------
-        X : Training data features, each row is a data point and each column a feature
-        y : Labels for each data point for supervised training
-        fit_params: Fitting parameters required by the wrapped model
-        """
-        try:
-            self._model.partial_fit(X, y=y, **fit_params)
-        except AttributeError as e:
-            raise NotImplementedError("Method partial_fit(..) is not implemented.") from e
 
         return self
 
-    def transform(self, X: Union[pd.DataFrame, np.ndarray]) -> Union[pd.DataFrame, np.ndarray]:
-        """
-        Invokes the transform method of the wrapped model
-
-        Parameters
-        ----------
-        X : Data to transform, each row is a data point and each column a feature
-
-        Returns
-        -------
-        Transformed input data X
-        """
-        if self._model is None:
-            raise RuntimeError("transform called before fit(..)")
-
+    def predict(self, X: pd.DataFrame, **predict_params) -> np.ndarray:
         try:
-            X_tf = self._model.transform(X)
-
-            if isinstance(X, pd.DataFrame) and X_tf.shape == X.shape:
-                X_tf = pd.DataFrame(data=X_tf, columns=X.columns)
-
-            return X_tf
-        except AttributeError as e:
-            raise NotImplementedError("Method transform(..) is not implemented.") from e
-
-    def predict(self, X, **predict_params) -> Union[np.ndarray, OptimizationResponse]:
-        """
-        Invokes the predict method of the wrapped model
-
-        Parameters
-        ----------
-        X : Data to predict from, each row is a data point and each column a feature
-        predict_params: Parameters required by the predict method of the wrapped model
-
-        Returns
-        -------
-        Predictions for input data X
-        """
-        if self._model is None:
-            raise RuntimeError("Method predict(..) called before fit(..).")
-
-        try:
-            return self._model.predict(X, **predict_params)
+            check_is_fitted(self.model)
+            return self.model.predict(X, **predict_params)
         except AttributeError as e:
             raise NotImplementedError(
-                f"Method predict(..) is not implemented by {type(self._model)}, {type(self.model_cls)}."
+                f"Method predict(..) is not implemented by {type(self.model)}."
             ) from e
 
-    def predict_proba(
-        self, X: Union[pd.DataFrame, np.ndarray], **predict_params
-    ) -> Union[np.ndarray, OptimizationResponse]:
-        """
-        Invokes the predict_proba method of the wrapped model
-
-        Parameters
-        ----------
-        X : Data to predict from, each row is a data point and each column a feature
-        predict_params: Parameters required by the predict method of the wrapped model
-
-        Returns
-        -------
-        Probability predictions for input data X
-        """
-        if self._model is None:
-            raise RuntimeError("Method predict_proba(..) called before fit(..).")
-
-        try:
-            return self._model.predict_proba(X, **predict_params)
-        except AttributeError as e:
-            raise NotImplementedError("Method predict_proba(..) is not implemented.") from e
-
-    def explain(self, **explain_params):
-        """
-        Invokes the explain method of the wrapped model
-
-        Parameters
-        ----------
-        explain_params: Explain parameters required by the wrapped model
-        """
-        if self._model is None:
-            raise RuntimeError("Method explain(..) called before fit(..).")
-
-        try:
-            return self._model.explain(**explain_params)
-        except AttributeError as e:
-            raise NotImplementedError("explain is not implemented") from e
-
-    def explain_predictions(self, X: Union[pd.DataFrame, np.ndarray], **explain_params):
-        """
-        Invokes the explain_predictions method of the wrapped model
-
-        Parameters
-        ----------
-        X : Data to predict from, each row is a data point and each column a feature
-        explain_params: Explain parameters required by the wrapped model
-        """
-        if self._model is None:
-            raise RuntimeError("Method explain_prediction(..) called before fit")
-
-        try:
-            return self._model.explain_predictions(X, **explain_params)
-        except AttributeError as e:
-            raise NotImplementedError("Method explain_predictions(..) is not implemented.") from e
+    def evaluate(self, X: pd.DataFrame, y: np.ndarray) -> float:
+        raise NotImplementedError("Subclasses must implement this method.")
 
     def serialize(self, dir_path):
         """
@@ -246,7 +112,7 @@ class USFModel(TransformerMixin, BaseEstimator):
                 cloudpickle.dump(self, f)
 
     @classmethod
-    def deserialize(cls, dir_path) -> "USFModel":
+    def deserialize(cls, dir_path) -> "PredictionModel":
         """
         Deserializes the model using pickle
 

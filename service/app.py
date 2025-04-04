@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from usf_model_api.serving.routers import sales_forecasting
+from service.routers import sales_forecasting
 
 
 app = FastAPI()
