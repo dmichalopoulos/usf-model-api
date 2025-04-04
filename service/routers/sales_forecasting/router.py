@@ -67,38 +67,64 @@ def get_app_status() -> JSONResponse:
     """
     return JSONResponse(
         status_code=HTTPStatus.OK,
-        content={"message": "The app is up and running."},
+        content={"message": f"Status Code {HTTPStatus.OK}: The app is up and running."},
     )
 
-def _predict(model_id: str, prediction_request: SalesForecastRequest | List[SalesForecastRequest]) -> List[Dict[str, Any]]:
-    """
-    This function should contain the logic to predict using the model.
-    For now, it just returns a dummy prediction.
-    """
-    model = SIMPLE_DB.get_model(model_id)
-    if not model:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Model with ID '{model_id}' not found.")
 
+def _predict(prediction_request: SalesForecastRequest | List[SalesForecastRequest]) -> List[Dict[str, Any]]:
+    """
+    Generates and stores (atomicly; either all are successful or nothing is written) predictions
+    for one or more sales forecast requests. Each request is allowed to request a specific model deployment
+    based on its ``model_id`` field.
+    """
+    # Create and prepare dataframe for scoring
     to_score = prediction_request if isinstance(prediction_request, list) else [prediction_request]
     scoring_df = pd.DataFrame.from_records(map(lambda x: x.model_dump(), to_score))
-    scoring_df["prediction"] = model.predict(X=scoring_df.drop(columns=["model_id"]))
-    scoring_df.insert(
-        0, column="prediction_id", value=[str(uuid4()) for _ in range(len(scoring_df))]
+    scoring_df.insert(0, column="prediction_id", value=None)
+    scoring_df["prediction"] = None
+    scoring_df["created_at"] = None
+    features = sorted(
+        set(scoring_df.columns) - {"model_id", "prediction_id", "prediction", "created_at"}
     )
-    scoring_df["created_at"] = pd.to_datetime(datetime.utcnow()).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+    LOG.info("Identified model features: %s", features)
+
+    # Score by model requested for each batch (also generalizes to one model)
+    requested_models = scoring_df["model_id"].unique()
+    LOG.info("Requested models: %s", requested_models.tolist())
+    for m in requested_models:
+        LOG.info("Running scoring with model '%s' ...", m)
+        model = SIMPLE_DB.get_model(m)
+        if not model:
+            raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Model with ID '{m}' not found.")
+
+        predictions = model.predict(X=scoring_df.loc[scoring_df["model_id"] == m, features])
+        scoring_df.loc[scoring_df["model_id"] == m, "prediction"] = predictions
+        scoring_df.loc[scoring_df["model_id"] == m, "prediction_id"] = [
+            str(uuid4()) for _ in range(len(predictions))
+        ]
+        scoring_df.loc[scoring_df["model_id"] == m, "created_at"] = pd.to_datetime(
+            datetime.utcnow()
+        ).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+
+    assert not scoring_df.isnull().values.any(), "Prediction dataframe contains NaN values."
+    # Save predictions to database
     SIMPLE_DB.save_predictions(scoring_df)
 
     return scoring_df.to_dict(orient="records")
 
 
-@router.post("/predict/{model_id}")
-def predict(model_id: str, prediction_request: SalesForecastRequest | List[SalesForecastRequest]) -> JSONResponse:
-    predictions = _predict(model_id, prediction_request)
+@router.post("/predict")
+def predict(prediction_request: SalesForecastRequest | List[SalesForecastRequest]) -> JSONResponse:
+    """
+    This endpoint is used to make predictions using the model. The model(s) used to generate predictions
+    is determined by the ``model_id`` field value in each ``SalesForecastRequest`` object.
+    """
+    predictions = _predict(prediction_request)
 
     return JSONResponse(
         status_code=HTTPStatus.OK,
         content={
-            "message": f"Prediction for model ID '{model_id}' was successful.",
+            "message": f"Prediction request successful.",
             "predictions": predictions,
         },
     )

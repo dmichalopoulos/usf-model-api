@@ -1,2 +1,3 @@
+docker volume rm usf-model-api-root
 docker build --no-cache -t usf-model-api:latest .
-docker build --no-cache -t model-server:latest ./service
+docker volume create usf-model-api-root

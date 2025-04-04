@@ -14,9 +14,5 @@ WORKDIR /package
 RUN pipenv sync --clear
 
 EXPOSE 80
-WORKDIR /package/service
-#CMD ["pipenv", "run", "fastapi", "run", "./app.py", "--port", "80"]
-
 
 CMD /bin/bash
-CMD pipenv shell
