@@ -3,10 +3,11 @@ node_modules/
 .git
 coverage/
 .dockerignore
-Dockerfile
+**/Dockerfile
 .gitignore
 .env
 .eslintrc
 .editorconfig
-/downloads
 **/catboost_info/
+**/.eggs
+**/.egg-info

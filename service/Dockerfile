@@ -2,7 +2,13 @@ FROM usf-model-api:latest
 
 EXPOSE 80
 WORKDIR /package/service
-CMD ["pipenv", "run", "fastapi", "run", "./app.py", "--port", "80"]
+#CMD ["pipenv", "run", "fastapi", "run", "./app.py", "--port", "80"]
+
+
+
+
+
+
 
 #WORKDIR /agm/budget_optimization
 #

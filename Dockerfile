@@ -1,6 +1,7 @@
 FROM python:3.10.13-slim-bullseye
 
 RUN apt-get update && apt-get -y upgrade
+RUN apt-get -y install curl && apt-get install libgomp1  # for LightGBM
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_NO_CACHE_DIR=1
@@ -11,4 +12,11 @@ COPY . package/
 WORKDIR /package
 
 RUN pipenv sync --clear
+
+EXPOSE 80
+WORKDIR /package/service
+#CMD ["pipenv", "run", "fastapi", "run", "./app.py", "--port", "80"]
+
+
 CMD /bin/bash
+CMD pipenv shell

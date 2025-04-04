@@ -33,7 +33,8 @@ class ModelDataset:
 
 
 class PredictionModel(TransformerMixin, BaseEstimator):
-    def __init__(self, preprocessor: Optional[Any], predictor: BaseEstimator):
+    def __init__(self, model_id: str, preprocessor: Optional[Any], predictor: BaseEstimator):
+        self._model_id = model_id
         self._preprocessor = preprocessor
         self._predictor = predictor
         self._model = Pipeline(
@@ -48,6 +49,13 @@ class PredictionModel(TransformerMixin, BaseEstimator):
             return self.model.__sklearn_tags__()
 
         return super().__sklearn_tags__()
+
+    @property
+    def model_id(self) -> str:
+        """
+        Returns the model ID
+        """
+        return self._model_id
 
     @property
     def preprocessor(self) -> Any:
@@ -91,13 +99,13 @@ class PredictionModel(TransformerMixin, BaseEstimator):
     def evaluate(self, X: pd.DataFrame, y: np.ndarray) -> float:
         raise NotImplementedError("Subclasses must implement this method.")
 
-    def serialize(self, dir_path):
+    def serialize(self, file_path):
         """
         Serializes the model using pickle
 
         Parameters
         ----------
-        dir_path : Location where the pickle object will be stored
+        file_path : Location where the pickle object will be stored
 
         Notes
         -----
@@ -106,19 +114,19 @@ class PredictionModel(TransformerMixin, BaseEstimator):
         method. The only argument passed to this method must be a `file_like: str`
         """
         try:
-            cloudpickle.dump(self, dir_path)
+            cloudpickle.dump(self, file_path)
         except TypeError:
-            with open(dir_path, "wb") as f:
+            with open(file_path, "wb") as f:
                 cloudpickle.dump(self, f)
 
     @classmethod
-    def deserialize(cls, dir_path) -> "PredictionModel":
+    def deserialize(cls, file_path) -> "PredictionModel":
         """
         Deserializes the model using pickle
 
         Parameters
         ----------
-        dir_path : Location where the pickle object is stored
+        file_path : Location where the pickle object is stored
 
         Returns
         -------
@@ -131,7 +139,7 @@ class PredictionModel(TransformerMixin, BaseEstimator):
         method. The only argument passed to this method must be a `file_like: str`
         """
         try:
-            return cloudpickle.load(dir_path)
+            return cloudpickle.load(file_path)
         except TypeError:
-            with open(dir_path, "rb") as f:
+            with open(file_path, "rb") as f:
                 return cloudpickle.load(f)
