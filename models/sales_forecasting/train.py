@@ -30,11 +30,7 @@ VALID_MODEL_TYPES = {"catboost", "lgbm"}
 DEFAULT_SCRIPT_PATH = Path(__file__).resolve().parent
 DEFAULT_TRAIN_DATA_LOC = DEFAULT_SCRIPT_PATH.joinpath("../..", "downloads", "train.csv")
 DEFAULT_SAVE_MODEL_LOC = DEFAULT_SCRIPT_PATH.joinpath(
-    "../..",
-    "service",
-    "routers",
-    "sales_forecasting",
-    "assets"
+    "../..", "service", "routers", "sales_forecasting", "assets"
 )
 DEFAULT_TRAIN_PCT = 0.8
 DEFAULT_RANDOM_SEED = 42
@@ -46,16 +42,17 @@ MODEL_PARAMS = load_yaml(DEFAULT_SCRIPT_PATH / "params.yaml")
 
 
 class DateFeatureExtractor(BaseEstimator, TransformerMixin):
+    # pylint: disable=unused-argument
     def fit(self, X: pd.DataFrame, y=None) -> "DateFeatureExtractor":
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X = X.copy()
-        X['day'] = pd.to_datetime(X['date']).dt.day
-        X['month'] = pd.to_datetime(X['date']).dt.month
-        X['year'] = pd.to_datetime(X['date']).dt.year
-        X['day_of_week'] = pd.to_datetime(X['date']).dt.dayofweek
-        return X.drop(columns=['date'])
+        X["day"] = pd.to_datetime(X["date"]).dt.day
+        X["month"] = pd.to_datetime(X["date"]).dt.month
+        X["year"] = pd.to_datetime(X["date"]).dt.year
+        X["day_of_week"] = pd.to_datetime(X["date"]).dt.dayofweek
+        return X.drop(columns=["date"])
 
 
 class SalesDataset(ModelDataset):
@@ -67,10 +64,7 @@ class SalesDataset(ModelDataset):
 
     def _get_splits(self, data: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         train_df, test_df = train_test_split(
-            data,
-            train_size=self.train_pct,
-            shuffle=True,
-            random_state=self.random_seed
+            data, train_size=self.train_pct, shuffle=True, random_state=self.random_seed
         )
         return {
             "train": train_df,
@@ -80,13 +74,16 @@ class SalesDataset(ModelDataset):
     def get_training_split(self) -> pd.DataFrame:
         return self.splits["train"]
 
+    def get_validation_split(self) -> pd.DataFrame:
+        raise NotImplementedError("get_validation_split() is not implemented.")
+
     def get_test_split(self) -> pd.DataFrame:
         return self.splits["test"]
 
 
 class SalesForecastingModel(PredictionModel):
     def __init__(self, model_id: str, preprocessor: Any, predictor: CatBoostRegressor):
-        super().__init__(model_id=model_id,preprocessor=preprocessor, predictor=predictor)
+        super().__init__(model_id=model_id, preprocessor=preprocessor, predictor=predictor)
 
     def evaluate(self, X: pd.DataFrame, y: np.ndarray) -> float:
         check_is_fitted(self.model)
@@ -144,9 +141,7 @@ def train_models(args: argparse.Namespace):
     # If an unspecified model name is provided, raise an error
     if set(args.model_name) - VALID_MODEL_TYPES:
         raise ValueError(
-            "Expected elements of 'model_name' to be one of %s, but found '%s'.",
-            VALID_MODEL_TYPES,
-            args.model_name
+            f"Expected elements of 'model_name' to be one of {VALID_MODEL_TYPES}, but found '{args.model_name}'."
         )
 
     LOG.info("Loading training data from %s", args.data_loc)
@@ -164,7 +159,7 @@ def train_models(args: argparse.Namespace):
         model = SalesForecastingModel(
             model_id=name,
             preprocessor=DateFeatureExtractor(),
-            predictor=(CatBoostRegressor if name == "catboost" else LGBMRegressor)(**params)
+            predictor=(CatBoostRegressor if name == "catboost" else LGBMRegressor)(**params),
         )
         model.fit(X_train, y_train)
 
@@ -183,4 +178,3 @@ def train_models(args: argparse.Namespace):
 if __name__ == "__main__":
     parsed_args = parse_args()
     train_models(parsed_args)
-

@@ -15,6 +15,7 @@ app.include_router(router)
 #     responses={418: {"description": "I'm a teapot"}},
 # )
 
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """
@@ -36,4 +37,6 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 @app.get("/", response_class=JSONResponse)
 def read_root() -> JSONResponse:
-    return JSONResponse(status_code=200, content={"message": "Welcome to my Model Prediction Service"})
+    return JSONResponse(
+        status_code=200, content={"message": "Welcome to my Model Prediction Service"}
+    )

@@ -1,6 +1,7 @@
-import pytest
+# pylint: disable=unused-argument
 import logging
 from unittest.mock import patch, mock_open
+import pytest
 import yaml
 
 from usf_model_api.utils import get_logger, load_yaml
@@ -19,7 +20,7 @@ def test_load_yaml_success(mock_file):
     with patch("yaml.safe_load", return_value={"catboost": {"verbose": 100}}):
         data = load_yaml(file_path)
         assert data == {"catboost": {"verbose": 100}}
-        mock_file.assert_called_once_with(file_path, 'r')
+        mock_file.assert_called_once_with(file_path, "r")
 
 
 @patch("builtins.open", new_callable=mock_open)

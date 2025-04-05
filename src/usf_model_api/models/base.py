@@ -84,12 +84,7 @@ class PredictionModel(TransformerMixin, BaseEstimator):
         self._model_id = model_id
         self._preprocessor = preprocessor
         self._predictor = predictor
-        self._model = Pipeline(
-            [
-                ('preprocessor', self.preprocessor),
-                ('model', self.predictor)
-            ]
-        )
+        self._model = Pipeline([("preprocessor", self.preprocessor), ("model", self.predictor)])
 
     def __sklearn_tags__(self):
         """

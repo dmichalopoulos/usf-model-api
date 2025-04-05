@@ -13,3 +13,5 @@ coverage/
 **/.egg-info
 .pylintrc
 ./run.sh
+./build.sh
+./Pipfile.lock
