@@ -39,7 +39,8 @@ include spending more time on the models themselves, including:
  * Cross-validated hyperparameter tuning
  * Feature engineering
   * Taking more advantage of time/seasonal patterns
-  * 
+  * Bringing in 3rd party datasets (e.g., history weather patterns by time of year; maybe they affect
+    sales?)
  * Model selection (additional models, ensembling, etc.)
  * Model evaluation
    * For simplicity, I trained and evaluated the models using a simple randomized `train-test-split`
