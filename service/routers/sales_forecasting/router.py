@@ -188,7 +188,7 @@ def predict(prediction_request: SalesForecastRequest | List[SalesForecastRequest
     return JSONResponse(
         status_code=HTTPStatus.OK,
         content={
-            "message": f"Prediction request successful.",
+            "message": "Prediction request successful.",
             "predictions": predictions,
         },
     )
