@@ -11,7 +11,8 @@ RUN pip3 install pipenv==2024.4.1 pip
 COPY . package/
 WORKDIR /package
 
-RUN pipenv sync --clear
+#RUN pipenv sync --clear
+RUN pipenv lock && pipenv sync --clear
 
 EXPOSE 80
 

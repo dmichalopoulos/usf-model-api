@@ -69,10 +69,13 @@ class SalesForecastRequest(PredictionRequest):
             parse(date)
         except ValueError:
             LOG.exception(
-                "Invalid date value '%s'. Ensure you pass in a valid date with format 'yyyy-MM-dd'",
+                "Invalid date value '%s'.",
                 date,
             )
             raise
+
+        if len(date) != 10:
+            raise ValueError("Invalid date format '%s'. Expected format 'yyyy-MM-dd'." % date)
 
         return date
 
@@ -153,7 +156,7 @@ def _predict(prediction_request: SalesForecastRequest | List[SalesForecastReques
         ]
         scoring_df.loc[scoring_df["model_id"] == m, "created_at"] = pd.to_datetime(
             datetime.utcnow()
-        ).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+        ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
     assert not scoring_df.isnull().values.any(), "Prediction dataframe contains NaN values."
     # Save predictions to database
