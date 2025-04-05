@@ -21,7 +21,7 @@ or by navigating to `http://0.0.0.0:80/docs` in your favorite browser (Swagger U
 This repo contains a prototype REST API service for serving model predictions from the `Store Item Demand
 Forecasting Challenge` Kaggle competition. The web app is built using FastAPI, and is designed to 
 be run as a containerized application using Docker. During image build, all `python` packaging and 
-dependency management is handled by `pipenv`. See `./Dockerfile` for more details.
+dependency management is handled by `pipenv`. See `/Dockerfile` for more details.
 
 Once running, the app supports the option of generating predictions from one of two models, depending
 on the contents of the `POST` request payload:
@@ -95,7 +95,7 @@ which can be downloaded [here](https://www.kaggle.com/competitions/demand-foreca
 
 > **IMPORTANT**  
 > 
-> `train.csv` file must be placed in the `/downloads` directory in the root of the repository.
+> Make sure that `/downloads/train.csv` exists.
 
 > **TIPS**  
 > 
