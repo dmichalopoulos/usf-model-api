@@ -13,4 +13,5 @@ class PredictionRequest(BaseModel):
     model_id : str
         The unique identifier for the model.
     """
+
     model_id: str

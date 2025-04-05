@@ -41,6 +41,7 @@ class SalesForecastRequest(PredictionRequest):
     item : int
         The item identifier.
     """
+
     date: str
     store: int
     item: int
@@ -68,10 +69,7 @@ class SalesForecastRequest(PredictionRequest):
         try:
             parse(date)
         except ValueError:
-            LOG.exception(
-                "Invalid date value '%s'.",
-                date,
-            )
+            LOG.exception("Invalid date value '%s'.", date)
             raise
 
         if len(date) != 10:
@@ -113,7 +111,9 @@ def get_app_status() -> JSONResponse:
     )
 
 
-def _predict(prediction_request: SalesForecastRequest | List[SalesForecastRequest]) -> List[Dict[str, Any]]:
+def _predict(
+    prediction_request: SalesForecastRequest | List[SalesForecastRequest],
+) -> List[Dict[str, Any]]:
     """
     Generates and stores (atomically; either all are successful or nothing is written) predictions
     for one or more sales forecast requests. Each request is allowed to request a specific model deployment
@@ -147,7 +147,9 @@ def _predict(prediction_request: SalesForecastRequest | List[SalesForecastReques
         LOG.info("Running scoring with model '%s' ...", m)
         model = SIMPLE_DB.get_model(m)
         if not model:
-            raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Model with ID '{m}' not found.")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail=f"Model with ID '{m}' not found."
+            )
 
         predictions = model.predict(X=scoring_df.loc[scoring_df["model_id"] == m, features])
         scoring_df.loc[scoring_df["model_id"] == m, "prediction"] = predictions

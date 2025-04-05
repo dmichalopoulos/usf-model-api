@@ -1,7 +1,8 @@
-import pytest
-import pandas as pd
+# pylint: disable=abstract-method, redefined-outer-name, unused-argument, protected-access
 from unittest.mock import MagicMock, patch
+import pytest
 
+import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.impute import SimpleImputer
 
@@ -12,9 +13,7 @@ from usf_model_api.models.base import PredictionModel
 class LinearRegressionModel(PredictionModel):
     def __init__(self, model_id: str, preprocessor=None, predictor=None):
         super().__init__(
-            model_id=model_id,
-            preprocessor=SimpleImputer(),
-            predictor=LinearRegression()
+            model_id=model_id, preprocessor=SimpleImputer(), predictor=LinearRegression()
         )
 
         self._model = LinearRegression()
@@ -65,7 +64,7 @@ def test_save_predictions():
         {
             "prediction_id": ["1", "2"],
             "prediction": [0.5, 0.7],
-            "created_at": ["2023-01-01 00:00:00.000", "2023-01-01 00:00:00.000"]
+            "created_at": ["2023-01-01 00:00:00.000", "2023-01-01 00:00:00.000"],
         }
     )
     db.save_predictions(predictions)
