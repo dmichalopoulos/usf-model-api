@@ -1,5 +1,22 @@
 # usf-model-api
 
+## Quickstart
+After you've cloned this repository, create a `./downloads` directory at the root level, and place 
+your `train.csv` in there. Make sure you have `docker` installed and running. Then run the following:
+
+```shell
+cd usf-model-api  # If you're not already in the repo root
+./build.sh [arm | amd]  # Choose `arm` for M1 Macs, `amd` for Intel machines
+./run.sh launch  # Trains the models, and launches the web app
+```
+
+If successful, the app will be port-forwarded to `0.0.0.0:80`, which you can test in another terminal 
+window by running
+```shell
+curl -X GET -H "Content-Type: application/json" http://0.0.0.0:80/sales-forecasting/status
+````
+or by navigating to `http://0.0.0.0:80/docs` in your favorite browser (Swagger UI).
+
 ## Summary
 This repo contains a prototype REST API service for serving model predictions from the `Store Item Demand
 Forecasting Challenge` Kaggle competition. The web app is built using FastAPI, and is designed to 
@@ -10,6 +27,25 @@ Once running, the app supports the option of generating predictions from one of 
 on the contents of the `POST` request payload:
  * A `CatBoostRegressor`
  * A `LightGBMRegressor`
+
+The models are relatively simple in nature, with three (3) input features:
+ * `date`
+ * `store`
+ * `item`
+
+Note that I spent very little time trying to optimize (hyperparameter-tune) each of the models, and
+instead focused on getting a well-functioning and easy-to-use app up and running. Future work would
+include spending more time on the models themselves, including:
+ * Cross-validated hyperparameter tuning
+ * Feature engineering
+  * Taking more advantage of time/seasonal patterns
+  * 
+ * Model selection (additional models, ensembling, etc.)
+ * Model evaluation
+   * For simplicity, I trained and evaluated the models using a simple randomized `train-test-split`
+     approach. But since the models are time-series in nature, and the goal is to accurately forecast
+     the future, a more appropriate approach would be to leverage time-based splits (including during
+     any hyperparameter tuning and cross-validation).
 
 Upon launch, the app port-forwards to 0.0.0.0:80 on the host machine, and exposes the following 
 endpoints:
@@ -39,6 +75,7 @@ From the root of the repo:
    ./build.sh amd
    ```
 > **WARNING**  
+> 
 > * If your host machine is an M1 Mac, building the `arm64` image is recommended. It will build much
    faster, and likely run more efficiently than the `amd64` image.
 > * Conversely, if your host machine is an Intel Mac, building the `amd64` image is recommended.
@@ -52,16 +89,22 @@ From the root of the repo:
 
 ## Launching the Application
 Once the image is built, getting the app up and running can be fully managed `./run.sh` located in
-the repo root.
+the repo root. The training dataset is the `train.csv` file associated with the Kaggle competition, 
+which can be downloaded [here](https://www.kaggle.com/competitions/demand-forecasting-kernels-only/data>).
 
-> **TIP**  
-> Steps (2) and (3) below can be run sequentially, but if you want to combine them into a single command,
-you can run:
+> **IMPORTANT**  
+> 
+> `train.csv` file must be placed in the `/downloads` directory in the root of the repository.
+
+> **TIPS**  
+> 
+> In what follows, Steps 2 (model training) and 3 (app launch) be run individually. But you can also
+you can also execute both steps in one go by running:
 > ```shell
 > ./run.sh launch
 > ````
 
-### (1) Running Unit Tests (Optional)
+### (1) Running Unit Tests [Optional]
 Several unit tests were created during app development, and they are included if you wish to run them:
 ```shell
 ./run.sh pytest
@@ -69,6 +112,7 @@ Several unit tests were created during app development, and they are included if
 
 ### (2) Training the Models
 > **NOTE**  
+> 
 > If you already ran `./run.sh launch`, you can skip this step, as the models will already be trained and saved.
 
 Before the web app can be launched, the `catboost` and `lightgbm` models must first be trained and
@@ -79,10 +123,11 @@ saved locally (serialized as `.pkl` files). Doing so is another simple one-liner
 After running the `train` command, the serialized models will be saved in the `/service/routers/sales_forecasting/assets`
 directory of the `usf-model-api-root` volume that was created during the image build process.
 
-> **WARNING**
-> * Running `train` before running the `build` command will result in an error, as the 
-   saved model artifacts will not exist yet. 
-> * Running `train` always overwrites any existing saved models in `/service/routers/sales_forecasting/assets`.
+> **WARNING**  
+> 
+> Running `./run.sh train` always overwrite any existing saved models in `/service/routers/sales_forecasting/assets`.
+> A simple fix for this would have been to append timestamps to the saved model filenames, but for simplicity
+> I have neglected to do so.
 
 ### (3) Launching the Web App
 > **NOTE**  
