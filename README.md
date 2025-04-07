@@ -11,7 +11,8 @@ on the contents of the `POST` request payload:
  * A `CatBoostRegressor`
  * A `LightGBMRegressor`
 
-The models are relatively simple in nature, with three (3) input features:
+The models are relatively simple in nature, with a target variable called `sales`, and three (3) input 
+features:
  * `date`
  * `store`
  * `item`
