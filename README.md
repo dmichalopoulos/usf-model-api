@@ -135,6 +135,7 @@ you can also execute both steps in one go by running:
 > ./run.sh launch
 > ````
 
+If you go this route, you can skip Steps 2 and 3 below and go straight to [Using the Web App](#using-the-web-app).
 
 #### (1) Running Unit Tests [Optional]
 Several unit tests were created during app development, and they are included if you wish to run them:
@@ -277,6 +278,61 @@ Response:
             "item": 2,
             "prediction": 79.6860749891785,
             "created_at": "2025-04-05 00:52:24.118"
+        }
+    ]
+}
+```
+Note that there is `pydantic` validation performed on the `date` field, so make sure each prediction
+request has this value formatted as `yyyy-MM-dd`. If you submit a request where any `date` field values
+are malformed, you will get back an error message like the following:
+
+Request:
+```shell
+# 2nd object has malformed date '2025-5-01'
+curl -X POST -H "Content-Type: application/json" -d \
+  '[{"model_id": "catboost", "date": "2025-04-01", "store": 1, "item": 2}, {"model_id": "lgbm", "date": "2025-5-01", "store": 1, "item": 2}]' \
+  http://0.0.0.0:80/sales-forecasting/predict
+```
+
+Response:
+```json
+{
+    "detail": [
+        {
+            "type": "model_attributes_type",
+            "loc": [
+                "body",
+                "SalesForecastRequest"
+            ],
+            "msg": "Input should be a valid dictionary or object to extract fields from",
+            "input": [
+                {
+                    "model_id": "catboost",
+                    "date": "2025-04-01",
+                    "store": 1,
+                    "item": 2
+                },
+                {
+                    "model_id": "lgbm",
+                    "date": "2025-5-01",
+                    "store": 1,
+                    "item": 2
+                }
+            ]
+        },
+        {
+            "type": "value_error",
+            "loc": [
+                "body",
+                "list[SalesForecastRequest]",
+                1,
+                "date"
+            ],
+            "msg": "Value error, Invalid date format '2025-5-01'. Expected format 'yyyy-MM-dd'.",
+            "input": "2025-5-01",
+            "ctx": {
+                "error": {}
+            }
         }
     ]
 }
