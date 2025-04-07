@@ -1,23 +1,6 @@
 # usf-model-api
 
-## Quickstart
-After you've cloned this repository, create a `./downloads` directory at the root level, and place 
-your `train.csv` in there. Make sure you have `docker` installed and running. Then run the following:
-
-```shell
-cd usf-model-api  # If you're not already in the repo root
-./build.sh [arm | amd]  # Choose `arm` for M1 Macs, `amd` for Intel machines
-./run.sh launch  # Trains the models, and launches the web app
-```
-
-If successful, the app will be port-forwarded to `0.0.0.0:80`, which you can test in another terminal 
-window by running
-```shell
-curl -X GET -H "Content-Type: application/json" http://0.0.0.0:80/sales-forecasting/status
-````
-or by navigating to `http://0.0.0.0:80/docs` in your favorite browser (Swagger UI).
-
-## Summary
+## Overview
 This repo contains a prototype REST API service for serving model predictions from the `Store Item Demand
 Forecasting Challenge` Kaggle competition. The web app is built using FastAPI, and is designed to 
 be run as a containerized application using Docker. During image build, all `python` packaging and 
@@ -39,28 +22,73 @@ include spending more time on the models themselves, including:
  * Cross-validated hyperparameter tuning
  * Feature engineering
   * Taking more advantage of time/seasonal patterns
-  * Bringing in 3rd party datasets (e.g., history weather patterns by time of year; maybe they affect
-    sales?)
- * Model selection (additional models, ensembling, etc.)
+  * Bringing in 3rd party datasets (e.g., seasonal data such as historical weather patterns by time 
+  * of year, to test whether they affect sales)
+ * Model selection (additional models, ensembling, stacking, etc.)
  * Model evaluation
    * For simplicity, I trained and evaluated the models using a simple randomized `train-test-split`
      approach. But since the models are time-series in nature, and the goal is to accurately forecast
      the future, a more appropriate approach would be to leverage time-based splits (including during
-     any hyperparameter tuning and cross-validation).
+     any hyperparameter tuning and cross-validation). So please note that I am completely aware that
+     a random `train-test` split isn't really appropriate here, but I wanted to focus the majority of
+     my efforts on creating a clean, well-functioning, and easy-to-use application.
 
-Upon launch, the app port-forwards to 0.0.0.0:80 on the host machine, and exposes the following 
+Upon launch, the app port-forwards to `0.0.0.0:80` on the host machine, and exposes the following 
 endpoints:
  
- * `[GET] /sales-forecast` - Application root
+ * `[GET] /` - Application root
+ * `[GET] /sales-forecast` - Sales Forecasting router application root
  * `[POST] /sales-forecast/predict` - accepts a JSON payload containing the features for a single prediction, and returns the predicted value
  * `[GET] /sales-forecast/status` - Returns a 200 status code if the app is running
 
-## Getting Started
-### Host Machine Prerequisites
- * `docker` installed and running
- * Compatible with either `linux/amd64` or `linux/arm64` architectures
+## Repository Design
+This repo is organized into 4 main directories:
+ * `/src`: Houses the main Python package (`usf-model-api`), which contains base class and utilities 
+   for developing web services (using FastAPI), and developing ML models. Right now it's pretty lean, 
+   and we only have one modeling application to speak of here. But my goal in designing it this way
+   is to attempt to be forward-thinking towards a future where there this would serve as a library
+   of common components used in the development of numerous model and service deployments.
+ * `/models`: Application-specific directories (only 1 at the moment) containing code for training and 
+   deploying ML models.
+ * `/service`: Application-specific directories (only 1 at the moment) containing code for defining
+   and deploying REST-based web services.
+ * `/tests`: Unit tests for `/src/usf_model_api`. Note that there are also unit tests for the Sales
+   Forecasting web service in `/service/routers/sales_forecasting/test_router.py`
 
-### Build the Docker Image
+In real life, `/src/usf_model_api`, `/models`, and `/service` would likely be completely separate repos
+(and each with their own dedicated unit and integration tests). But for the purposes of this exercise, 
+they are all packaged together here.
+
+## Getting Started
+> **NOTE**  
+> You may need to run `chmod +x` on `build.sh` and `run.sh` to make them executable.
+
+### Host Machine Prerequisites
+ * Make sure you have `docker` installed and running
+ * Your machine should be compatible with either `linux/amd64` or `linux/arm64` architectures
+
+If you want to build and launch the app and start using it in one go, follow the directions in the 
+[Quickstart](#quickstart) section below. Otherwise, if you want to follow the step-by-step instructions,
+you can skip ahead to the [Step-by-Step Instructions](#step-by-step-instructions) section.
+
+### Quickstart
+After you've cloned this repository, create a `./downloads` directory at the root level, and place 
+your `train.csv` in there. Make sure you have `docker` installed and running. Then run the following:
+
+```shell
+cd usf-model-api  # If you're not already in the repo root
+./build.sh [<|arm|amd>]  # Leave blank or choose `arm` for M1 Macs, `amd` for Intel machines
+./run.sh launch  # Trains the models, and launches the web app
+```
+
+If successful, the app will be port-forwarded to `0.0.0.0:80`, and your setup is complete. For 
+directions on how to use and interact with the app and its API, see [Using the Web App](#using-the-web-app).
+
+### Step-by-Step Instructions
+If you've skipped the [Quickstart](#quickstart) because you prefer a step-by-step setup experience,
+you've come to the right place.
+
+#### Build the Docker Image
 From the root of the repo:
 
  * To build the `linux/arm64`-compatible image, run:
@@ -69,7 +97,6 @@ From the root of the repo:
    ```
    Note that `arm` is the default architecture, so you can also just run `./build.sh` (no args) to 
    build the `arm64` image.
-
 
  * To build the `linux/amd64`-compatible image, run:
    ```shell
@@ -88,14 +115,16 @@ From the root of the repo:
 > ```
 > This is expected, and can be ignored.
 
-## Launching the Application
+#### Launching the Application
 Once the image is built, getting the app up and running can be fully managed `./run.sh` located in
 the repo root. The training dataset is the `train.csv` file associated with the Kaggle competition, 
 which can be downloaded [here](https://www.kaggle.com/competitions/demand-forecasting-kernels-only/data>).
 
+
 > **IMPORTANT**  
 > 
 > Make sure that `/downloads/train.csv` exists.
+
 
 > **TIPS**  
 > 
@@ -105,24 +134,26 @@ you can also execute both steps in one go by running:
 > ./run.sh launch
 > ````
 
-### (1) Running Unit Tests [Optional]
+
+#### (1) Running Unit Tests [Optional]
 Several unit tests were created during app development, and they are included if you wish to run them:
 ```shell
 ./run.sh pytest
 ```
 
-### (2) Training the Models
+#### (2) Training the Models
 > **NOTE**  
 > 
-> If you already ran `./run.sh launch`, you can skip this step, as the models will already be trained and saved.
+> If you already ran `./run.sh launch`, you can skip ahead to [Using the Web App](#using-the-web-app).
 
 Before the web app can be launched, the `catboost` and `lightgbm` models must first be trained and
-saved locally (serialized as `.pkl` files). Doing so is another simple one-liner:
+saved locally (serialized as `.pkl` files). Doing so is as simple as running
 ```shell
 ./run.sh train
 ```
 After running the `train` command, the serialized models will be saved in the `/service/routers/sales_forecasting/assets`
 directory of the `usf-model-api-root` volume that was created during the image build process.
+
 
 > **WARNING**  
 > 
@@ -130,7 +161,8 @@ directory of the `usf-model-api-root` volume that was created during the image b
 > A simple fix for this would have been to append timestamps to the saved model filenames, but for simplicity
 > I have neglected to do so.
 
-### (3) Launching the Web App
+
+#### (3) Launching the Web App
 > **NOTE**  
 > If you already ran `./run.sh launch`, you can skip this step, since the web app should already be
 > up and running.
@@ -177,8 +209,9 @@ INFO:uvicorn.error:Application startup complete.
 INFO:uvicorn.error:Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
-Now the webapp is up and running, and additionally is port-forwarding to `0.0.0.0:80` on the host 
-machine.
+Now the webapp is up and running, and should be port-forwarding to `0.0.0.0:80` on the host machine.
+In the next section ([Using the Web App](#using-the-web-app)), we provide instructions and examples 
+on how to start using the app, and interacting with its API.
 
 ## Using the Web App
 ### Viewing the API Docs
