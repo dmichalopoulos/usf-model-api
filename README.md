@@ -86,8 +86,8 @@ If successful, the app will be port-forwarded to `0.0.0.0:80`, and your setup is
 directions on how to use and interact with the app and its API, see [Using the Web App](#using-the-web-app).
 
 ### Step-by-Step Instructions
-If you've skipped the [Quickstart](#quickstart) because you prefer a step-by-step setup experience,
-you've come to the right place.
+If you've skipped the [Quickstart](#quickstart) because you prefer a step-by-step setup experience, proceed
+below.
 
 #### Build the Docker Image
 From the root of the repo:
