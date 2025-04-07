@@ -228,7 +228,7 @@ Request:
 curl -X GET -H "Content-Type: application/json" http://0.0.0.0:80/sales-forecasting/status
 ````
 
-Response:
+Response: ✅
 ```json
 {
     "message": "Status Code 200: The app is up and running."
@@ -247,7 +247,7 @@ curl -X POST -H "Content-Type: application/json" -d \
   http://0.0.0.0:80/sales-forecasting/predict
 ```
 
-Response:
+Response: ✅
 ```json
 {
     "message": "Prediction request successful.",
@@ -294,7 +294,7 @@ curl -X POST -H "Content-Type: application/json" -d \
   http://0.0.0.0:80/sales-forecasting/predict
 ```
 
-Response:
+Response: ❌
 ```json
 {
     "detail": [
