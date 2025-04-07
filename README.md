@@ -57,7 +57,7 @@ This repo is organized into 4 main directories:
    Forecasting web service in `/service/routers/sales_forecasting/test_router.py`
 
 In real life, `/src/usf_model_api`, `/models`, and `/service` would likely be completely separate repos
-(and each with their own dedicated unit and integration tests). But for the purposes of this exercise, 
+(each with their own dedicated unit and integration tests). But for the purposes of this exercise, 
 they are all packaged together here.
 
 ## Getting Started
