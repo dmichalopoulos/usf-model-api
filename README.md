@@ -165,9 +165,10 @@ directory of the `usf-model-api-root` volume that was created during the image b
 
 
 #### (3) Launching the Web App
-> **NOTE**  
-> If you already ran `./run.sh launch`, you can skip this step, since the web app should already be
-> up and running.
+> **NOTE**
+> 
+> If you already ran `./run.sh launch`, you can skip ahead to [Using the Web App](#using-the-web-app)., since the
+> web app should already be up and running.
 
 Finally, we are ready to launch the web app:
 ```shell
