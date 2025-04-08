@@ -2,9 +2,14 @@
 
 ## Overview
 This repo contains a prototype REST API service for serving model predictions from the `Store Item Demand
-Forecasting Challenge` Kaggle competition. The web app is built using FastAPI, and is designed to 
-be run as a containerized application using Docker. During image build, all `python` packaging and 
-dependency management is handled by `pipenv`. See `/Dockerfile` for more details.
+Forecasting Challenge` on Kaggle. 
+
+ * More details about the competition - including training and scoring datasets - can be found [here](https://www.kaggle.com/competitions/demand-forecasting-kernels-only/overview).
+ * The forecasting models used in this application were inspired by this [notebook](https://www.kaggle.com/code/ashishpatel26/light-gbm-demand-forecasting/notebook).
+
+The web app is built using FastAPI, and is designed to be run as a containerized application using Docker. 
+During image build, all `python` packaging and dependency management is handled by `pipenv`. See `/Dockerfile` 
+for more details.
 
 Once running, the app supports the option of generating predictions from one of two models, depending
 on the contents of the `POST` request payload:
